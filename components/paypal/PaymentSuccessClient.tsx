@@ -20,7 +20,7 @@ export default function PaymentSuccessClient() {
   const token = searchParams?.get('token');
   const amount = searchParams?.get('amount');
 
-  // استفاده از RTK Query برای تأیید پرداخت PayPal
+  // استفاده از RTK Query برای تأیید پرداخت PayPal (اختیاری)
   const { data: verificationData, isLoading: isVerifying, error } = useVerifyPayPalPaymentQuery(
     { token: token || '' },
     { 
@@ -64,8 +64,8 @@ export default function PaymentSuccessClient() {
     );
   }
 
-  // اگر در حال تأیید PayPal هست
-  if (isVerifying) {
+  // اگر در حال تأیید PayPal هست (فقط اگر token موجود باشه)
+  if (isVerifying && token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="text-center">
@@ -74,35 +74,6 @@ export default function PaymentSuccessClient() {
         </div>
       </div>
     );
-  }
-
-  // اگر خطا در تأیید PayPal (اما اطلاعات کافی از URL داریم)
-  if (error && token) {
-    console.warn('PayPal verification failed, but showing success with URL data:', error);
-    // اگر اطلاعات کافی از URL داریم، صفحه موفقیت رو نمایش می‌دیم
-    if (orderId && transactionId && paymentMethod) {
-      // ادامه می‌کنیم و صفحه موفقیت رو نمایش می‌دیم
-    } else {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifikationsfehler</h1>
-            <p className="text-gray-600 mb-8">Die Zahlung konnte nicht verifiziert werden</p>
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200"
-            >
-              Zurück zur Startseite
-            </button>
-          </div>
-        </div>
-      );
-    }
   }
 
   if (isLoading) {
@@ -205,9 +176,15 @@ export default function PaymentSuccessClient() {
             </p>
           )}
           {/* اگر خطا در تأیید بود ولی اطلاعات کافی داشتیم */}
-          {error && (
+          {error && token && (
             <p className="text-xs text-yellow-600 mt-2">
               ⚠️ Zahlung erfolgreich, aber Verifikation konnte nicht abgeschlossen werden
+            </p>
+          )}
+          {/* اگر verification انجام نشده (بدون token) */}
+          {!token && (
+            <p className="text-xs text-blue-600 mt-2">
+              ℹ️ Zahlung über URL-Parameter bestätigt
             </p>
           )}
         </div>
