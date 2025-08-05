@@ -24,10 +24,18 @@ export const extendedApiOrderSlice = apiSlice.injectEndpoints({
        
         verifyPayPalPayment: builder.query<any, { token: string }>({
             query: ({ token }) => ({
-              url: `/order/payment/verify/paypal?token=${token}`,
-              method: "GET",
+                // استفاده از proxy API برای حل مشکل CORS
+                url: `/verify-paypal?token=${token}`,
+                method: "GET",
             }),
-          }),
+            // اضافه کردن error handling بهتر
+            transformResponse: (response: any) => {
+                if (response.success) {
+                    return response.data;
+                }
+                throw new Error(response.error || 'Verifikation fehlgeschlagen');
+            },
+        }),
     }),
 });
 
