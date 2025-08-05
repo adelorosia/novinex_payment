@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useVerifyPayPalPaymentQuery } from '@/feature/reducers/paypalSlice';
+
+// TODO: برای آینده - اضافه کردن useGetOrderDetailsQuery برای جزئیات سفارش
+// import { useGetOrderDetailsQuery } from '@/feature/reducers/orderSlice';
 
 export default function PaymentSuccessClient() {
   const searchParams = useSearchParams();
@@ -9,28 +13,37 @@ export default function PaymentSuccessClient() {
   const [paymentData, setPaymentData] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
 
+  // گرفتن اطلاعات از URL
   const orderId = searchParams?.get('orderId');
+  const transactionId = searchParams?.get('transactionId');
+  const paymentMethod = searchParams?.get('paymentMethod');
   const token = searchParams?.get('token');
-  const PayerID = searchParams?.get('PayerID');
+
+  // استفاده از RTK Query برای تأیید پرداخت PayPal
+  const { data: verificationData, isLoading: isVerifying, error } = useVerifyPayPalPaymentQuery(
+    { token: token || '' },
+    { skip: !token || !isClient }
+  );
+
+  // TODO: برای آینده - گرفتن جزئیات سفارش
+  // const { data: orderDetails } = useGetOrderDetailsQuery(orderId!, { skip: !orderId });
 
   useEffect(() => {
     setIsClient(true);
     
-    if (orderId && token && PayerID) {
-      // اینجا می‌تونی یه fetch بزنی به بک‌اند برای تأیید پرداخت
-      // fetch(`/api/verify-payment?orderId=${orderId}&token=${token}&PayerID=${PayerID}`);
-      
+    if (orderId && transactionId && paymentMethod) {
       setPaymentData({
         orderId,
-        token,
-        PayerID,
-        amount: '100.00', // این مقدار باید از بک‌اند بیاد
+        transactionId,
+        paymentMethod,
         date: new Date().toLocaleDateString('de-DE'),
-        time: new Date().toLocaleTimeString('de-DE')
+        time: new Date().toLocaleTimeString('de-DE'),
+        // استفاده مستقیم از verificationData یا fallback
+        amount: verificationData?.amount ?? '100.00'
       });
     }
     setIsLoading(false);
-  }, [orderId, token, PayerID]);
+  }, [orderId, transactionId, paymentMethod, verificationData]);
 
   // اگر هنوز client-side نیست، loading نمایش بده
   if (!isClient) {
@@ -39,6 +52,41 @@ export default function PaymentSuccessClient() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // اگر در حال تأیید PayPal هست
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Zahlung wird verifiziert...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // اگر خطا در تأیید PayPal
+  if (error && token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifikationsfehler</h1>
+          <p className="text-gray-600 mb-8">Die Zahlung konnte nicht verifiziert werden</p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200"
+          >
+            Zurück zur Startseite
+          </button>
         </div>
       </div>
     );
@@ -55,6 +103,20 @@ export default function PaymentSuccessClient() {
     );
   }
 
+  // تعیین پیام مناسب بر اساس paymentMethod
+  const getPaymentMethodMessage = () => {
+    switch (paymentMethod) {
+      case 'PayPal':
+        return 'Ihre PayPal-Zahlung wurde erfolgreich verarbeitet';
+      case 'CreditCard':
+        return 'Ihre Kreditkartenzahlung wurde erfolgreich verarbeitet';
+      case 'BankTransfer':
+        return 'Ihre Banküberweisung wurde erfolgreich verarbeitet';
+      default:
+        return 'Ihre Bestellung wurde erfolgreich registriert und bezahlt';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
@@ -67,7 +129,7 @@ export default function PaymentSuccessClient() {
 
         {/* Title */}
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Zahlung erfolgreich!</h1>
-        <p className="text-gray-600 mb-8">Ihre Bestellung wurde erfolgreich registriert und bezahlt</p>
+        <p className="text-gray-600 mb-8">{getPaymentMethodMessage()}</p>
 
         {/* Payment Details */}
         {paymentData && (
@@ -77,6 +139,14 @@ export default function PaymentSuccessClient() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Bestellnummer:</span>
                 <span className="font-mono font-semibold text-gray-900">{paymentData.orderId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Transaktions-ID:</span>
+                <span className="font-mono font-semibold text-gray-900">{paymentData.transactionId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Zahlungsmethode:</span>
+                <span className="font-semibold text-blue-600">{paymentData.paymentMethod}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Betrag:</span>
@@ -115,6 +185,12 @@ export default function PaymentSuccessClient() {
           <p className="text-xs text-gray-500">
             Die Zahlungsbestätigung wird an Ihre E-Mail gesendet
           </p>
+          {/* اگر verificationData اطلاعات اضافی داره */}
+          {verificationData?.additionalInfo && (
+            <p className="text-xs text-blue-600 mt-2">
+              {verificationData.additionalInfo}
+            </p>
+          )}
         </div>
       </div>
     </div>
