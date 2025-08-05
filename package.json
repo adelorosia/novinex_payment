@@ -6,8 +6,8 @@
     "dev": "NODE_OPTIONS='--no-deprecation' next dev -p 3011",
     "build": "next build",
     "start": "next start -p 3998",
-    "setup": "npm i && npm run build && pm2 start --name mainsite npm -- start --update-env --time && pm2 save",
-    "deploy": "git pull --no-rebase && npm i && npm run build && pm2 restart mainsite --update-env --time && pm2 save",
+    "setup": "npm i && npm run build && pm2 start --name pay npm -- start --update-env --time && pm2 save",
+    "deploy": "git pull --no-rebase && npm i && npm run build && pm2 restart pay --update-env --time && pm2 save",
     "cp": "node cli/cp.mjs"
   },
   "dependencies": {
