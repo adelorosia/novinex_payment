@@ -24,7 +24,7 @@ export const extendedApiOrderSlice = apiSlice.injectEndpoints({
        
         verifyPayPalPayment: builder.query<any, { token: string }>({
             query: ({ token }) => ({
-              url: `/payment/verify/paypal?token=${token}`,
+              url: `/order/payment/verify/paypal?token=${token}`,
               method: "GET",
             }),
           }),
