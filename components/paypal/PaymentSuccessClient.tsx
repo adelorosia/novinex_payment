@@ -7,12 +7,15 @@ export default function PaymentSuccessClient() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [paymentData, setPaymentData] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  const orderId = searchParams.get('orderId');
-  const token = searchParams.get('token');
-  const PayerID = searchParams.get('PayerID');
+  const orderId = searchParams?.get('orderId');
+  const token = searchParams?.get('token');
+  const PayerID = searchParams?.get('PayerID');
 
   useEffect(() => {
+    setIsClient(true);
+    
     if (orderId && token && PayerID) {
       // اینجا می‌تونی یه fetch بزنی به بک‌اند برای تأیید پرداخت
       // fetch(`/api/verify-payment?orderId=${orderId}&token=${token}&PayerID=${PayerID}`);
@@ -28,6 +31,18 @@ export default function PaymentSuccessClient() {
     }
     setIsLoading(false);
   }, [orderId, token, PayerID]);
+
+  // اگر هنوز client-side نیست، loading نمایش بده
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

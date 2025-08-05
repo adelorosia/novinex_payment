@@ -7,11 +7,14 @@ export default function PaymentFailedClient() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [paymentData, setPaymentData] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  const orderId = searchParams.get('orderId');
-  const token = searchParams.get('token');
+  const orderId = searchParams?.get('orderId');
+  const token = searchParams?.get('token');
 
   useEffect(() => {
+    setIsClient(true);
+    
     if (orderId && token) {
       // اینجا می‌تونی یه fetch بزنی به بک‌اند برای لغو پرداخت
       // fetch(`/api/cancel-payment?orderId=${orderId}&token=${token}`);
@@ -25,6 +28,18 @@ export default function PaymentFailedClient() {
     }
     setIsLoading(false);
   }, [orderId, token]);
+
+  // اگر هنوز client-side نیست، loading نمایش بده
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
