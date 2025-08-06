@@ -4,7 +4,7 @@ export const apiSlice = createApi({
     reducerPath: 'pizzaApi',
     // baseQuery: fetchBaseQuery({ baseUrl: 'http://localhost:4005/api/v1' }),
     baseQuery: fetchBaseQuery({ 
-        baseUrl: 'https://novinex-db.novinex.de:9005/', // استفاده از relative URL برای proxy API
+        baseUrl: 'https://novinex-db.novinex.de', // استفاده از relative URL برای proxy API
         credentials: 'include',
         prepareHeaders: (headers) => {
             headers.set('Accept', 'application/json');
