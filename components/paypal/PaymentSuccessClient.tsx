@@ -62,12 +62,16 @@ export default function PaymentSuccessClient() {
   const getRestaurantDomain = () => {
     if (!restaurantId || restaurantId === 'N/A') return null;
     
+    console.log("🔍 All restaurants:", restaurants);
+    console.log("🔍 Looking for restaurant with no:", restaurantId);
+    
     const restaurant = restaurants.find(r => r.no === restaurantId);
     console.log("🔍 Debug restaurant lookup:", {
       restaurantId,
       restaurants: restaurants.length,
       foundRestaurant: restaurant,
-      domain: restaurant?.domain
+      domain: restaurant?.domain,
+      allRestaurantNos: restaurants.map(r => r.no)
     });
     return restaurant?.domain || null;
   };
@@ -182,22 +186,13 @@ export default function PaymentSuccessClient() {
                 currentDomain: window.location.origin
               });
               
-              // اگر دامنه رستوران موجود باشه، کاربر را به آنجا بفرست
+              // فقط به دامنه رستوران برو
               if (restaurantDomain) {
                 console.log("🏪 Redirecting to restaurant domain:", restaurantDomain);
                 window.location.href = restaurantDomain;
               } else {
-                // اگر دامنه رستوران نباشه، بررسی referrer
-                const referrer = document.referrer;
-                const currentDomain = window.location.origin;
-                
-                if (referrer && !referrer.startsWith(currentDomain)) {
-                  console.log("🔗 Redirecting to original website:", referrer);
-                  window.location.href = referrer;
-                } else {
-                  console.log("🏠 Redirecting to homepage");
-                  window.location.href = '/';
-                }
+                console.log("❌ No restaurant domain found, staying on current page");
+                // اگر دامنه رستوران نباشد، کاری نکن
               }
             }}
             className="w-full bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700 transition-colors duration-200"
