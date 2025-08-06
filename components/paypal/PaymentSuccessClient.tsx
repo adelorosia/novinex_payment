@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useVerifyPayPalPaymentQuery } from '@/feature/reducers/paypalSlice';
+import { displayRestaurants } from '@/feature/reducers/restaurantSlice';
+import { useSelector } from 'react-redux';
 
 // TODO: برای آینده - اضافه کردن useGetOrderDetailsQuery برای جزئیات سفارش
 // import { useGetOrderDetailsQuery } from '@/feature/reducers/orderSlice';
@@ -19,6 +21,7 @@ export default function PaymentSuccessClient() {
   const paymentMethod = searchParams?.get('paymentMethod');
   const token = searchParams?.get('token');
   const amount = searchParams?.get('amount');
+  const restaurantId = searchParams?.get('restaurantId');
 
   // استفاده از RTK Query برای تأیید پرداخت PayPal (اختیاری)
   const { data: verificationData, isLoading: isVerifying, error } = useVerifyPayPalPaymentQuery(
@@ -31,6 +34,9 @@ export default function PaymentSuccessClient() {
       refetchOnReconnect: false
     }
   );
+
+  // دریافت اطلاعات رستوران‌ها
+  const restaurants = useSelector((state: any) => displayRestaurants(state));
 
   // TODO: برای آینده - گرفتن جزئیات سفارش
   // const { data: orderDetails } = useGetOrderDetailsQuery(orderId!, { skip: !orderId });
@@ -51,6 +57,16 @@ export default function PaymentSuccessClient() {
     }
     setIsLoading(false);
   }, [orderId, transactionId, paymentMethod, verificationData, amount]);
+
+  // پیدا کردن دامنه رستوران
+  const getRestaurantDomain = () => {
+    if (!restaurantId || restaurantId === 'N/A') return null;
+    
+    const restaurant = restaurants.find(r => r.no === restaurantId);
+    return restaurant?.domain || null;
+  };
+
+  const restaurantDomain = getRestaurantDomain();
 
   // اگر هنوز client-side نیست، loading نمایش بده
   if (!isClient) {
@@ -152,18 +168,22 @@ export default function PaymentSuccessClient() {
         <div className="space-y-3">
           <button
             onClick={() => {
-              // بررسی اینکه آیا کاربر از وب‌سایت دیگری آمده یا نه
-              const referrer = document.referrer;
-              const currentDomain = window.location.origin;
-              
-              // اگر referrer موجود باشه و از دامنه دیگری باشه
-              if (referrer && !referrer.startsWith(currentDomain)) {
-                console.log("🔗 Redirecting to original website:", referrer);
-                window.location.href = referrer;
+              // اگر دامنه رستوران موجود باشه، کاربر را به آنجا بفرست
+              if (restaurantDomain) {
+                console.log("🏪 Redirecting to restaurant domain:", restaurantDomain);
+                window.location.href = restaurantDomain;
               } else {
-                // اگر referrer نباشه یا از همین دامنه باشه، به صفحه اصلی برو
-                console.log("🏠 Redirecting to homepage");
-                window.location.href = '/';
+                // اگر دامنه رستوران نباشه، بررسی referrer
+                const referrer = document.referrer;
+                const currentDomain = window.location.origin;
+                
+                if (referrer && !referrer.startsWith(currentDomain)) {
+                  console.log("🔗 Redirecting to original website:", referrer);
+                  window.location.href = referrer;
+                } else {
+                  console.log("🏠 Redirecting to homepage");
+                  window.location.href = '/';
+                }
               }
             }}
             className="w-full bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700 transition-colors duration-200"

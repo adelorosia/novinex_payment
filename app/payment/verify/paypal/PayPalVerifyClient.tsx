@@ -62,8 +62,8 @@ export default function PayPalVerifyClient() {
       }
 
       // ریدایرکت به صفحه موفقیت با تمام اطلاعات
-      const { orderId, transactionId, amount, paymentMethod } = verificationData;
-      const successUrl = `/payment/success?orderId=${orderId}&transactionId=${transactionId || 'N/A'}&amount=${amount || 'N/A'}&paymentMethod=${paymentMethod || 'PayPal'}`;
+      const { orderId, transactionId, amount, paymentMethod, restaurantId } = verificationData;
+      const successUrl = `/payment/success?orderId=${orderId}&transactionId=${transactionId || 'N/A'}&amount=${amount || 'N/A'}&paymentMethod=${paymentMethod || 'PayPal'}&restaurantId=${restaurantId || 'N/A'}`;
       console.log("✅ Redirecting to success:", successUrl);
       router.replace(successUrl);
     }

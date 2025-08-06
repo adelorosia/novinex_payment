@@ -1,3 +1,21 @@
+export interface IRestaurant {
+  _id: string;
+  no: string;
+  name: string;
+  street: string;
+  plz: string;
+  city: string;
+  tel: string[];
+  email: string;
+  e_pass: string;
+  h_pass: string;
+  domain?: string;
+  orderReceiverUrl?: string;
+  apiSecret?: string;
+  isActive?: boolean;
+}
+export type TRestaurant = Partial<IRestaurant>;
+
 export interface IOrder {
     _id: string;
     restaurantId:string;
