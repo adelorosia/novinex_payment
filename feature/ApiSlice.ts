@@ -4,14 +4,9 @@ export const apiSlice = createApi({
     reducerPath: 'pizzaApi',
     // baseQuery: fetchBaseQuery({ baseUrl: 'http://localhost:4005/api/v1' }),
     baseQuery: fetchBaseQuery({ 
-        baseUrl: 'https://pay.novinex.de/api', // تغییر به دامنه فرانت
+        baseUrl: 'https://novinex-db.novinex.de:9005/', // استفاده از relative URL برای proxy API
         credentials: 'include',
         prepareHeaders: (headers) => {
-            // اضافه کردن CORS headers
-            headers.set('Access-Control-Allow-Origin', 'https://pay.novinex.de');
-            headers.set('Access-Control-Allow-Credentials', 'true');
-            headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
             headers.set('Accept', 'application/json');
             return headers;
         },

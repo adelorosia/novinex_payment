@@ -1,12 +1,29 @@
 'use client';
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useVerifyPayPalPaymentQuery } from "@/feature/reducers/paypalSlice";
 
 export default function PayPalVerifyClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const [isClient, setIsClient] = useState(false);
+
+  // استفاده از RTK Query برای تایید پرداخت PayPal
+  const { data: verificationData, isLoading, error, isError } = useVerifyPayPalPaymentQuery(
+    { token: token || '' },
+    { 
+      skip: !token || !isClient,
+      refetchOnMountOrArgChange: false,
+      refetchOnFocus: false,
+      refetchOnReconnect: false
+    }
+  );
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -15,112 +32,42 @@ export default function PayPalVerifyClient() {
       return;
     }
 
+    if (!isClient) return; // منتظر client-side rendering
+
     console.log("🔍 Starting PayPal verification with token:", token);
     console.log("🔍 Current URL:", window.location.href);
 
-    const verify = async () => {
-      try {
-        console.log("🔍 Step 1: Trying proxy API...");
-        
-        // اول سعی می‌کنیم JSON response بگیریم
-        const res = await fetch(`/api/verify-paypal?token=${token}`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
+    // اگر در حال loading هستیم، منتظر بمانیم
+    if (isLoading) {
+      console.log("⏳ Loading verification data...");
+      return;
+    }
 
-        console.log("📡 Proxy response status:", res.status);
-        console.log("📡 Proxy response url:", res.url);
-        console.log("📡 Proxy response redirected:", res.redirected);
-        
-        // اگر response redirect باشه (302, 301)
-        if (res.redirected) {
-          console.log("🔄 Proxy response was redirected to:", res.url);
-          // بک‌اند مستقیماً به success redirect کرده
-          window.location.href = res.url;
-          return;
-        }
+    // اگر error داریم
+    if (isError) {
+      console.error("❌ Verification error:", error);
+      router.replace(`/payment/failed?error=verify_failed&reason=Verifikation fehlgeschlagen`);
+      return;
+    }
 
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        console.log("📦 Proxy verification response:", data);
-
-        if (data.success && data.data) {
-          // تصحیح: orderId از data.data میاد، نه data.data.data
-          const { orderId, transactionId, amount, paymentMethod } = data.data;
-          
-          // بررسی اینکه orderId موجود باشه
-          if (!orderId) {
-            console.error("❌ orderId is missing in proxy response:", data);
-            router.replace("/payment/failed?error=missing_orderId&reason=Bestellnummer fehlt");
-            return;
-          }
-
-          // ریدایرکت به صفحه موفقیت با تمام اطلاعات
-          const successUrl = `/payment/success?orderId=${orderId}&transactionId=${transactionId || 'N/A'}&amount=${amount || 'N/A'}&paymentMethod=${paymentMethod || 'PayPal'}`;
-          console.log("✅ Redirecting to success from proxy:", successUrl);
-          router.replace(successUrl);
-        } else if (data.success && data.redirectUrl) {
-          console.log("✅ Proxy returned redirect URL:", data.redirectUrl);
-          window.location.href = data.redirectUrl;
-        } else {
-          console.error("❌ Proxy verification failed:", data);
-          router.replace(`/payment/failed?error=verify_failed&reason=${data.error || 'Verifikation fehlgeschlagen'}`);
-        }
-      } catch (err) {
-        console.error("❌ Proxy network error:", err);
-        
-        // اگر proxy fail شد، مستقیماً به بک‌اند درخواست بزنیم
-        try {
-          console.log("🔄 Step 2: Trying direct backend request...");
-          const directRes = await fetch(`https://novinex-db.novinex.de/api/order/payment/verify/paypal?token=${token}`, {
-            headers: {
-              'Accept': 'application/json',
-            },
-          });
-
-          console.log("📡 Direct backend response status:", directRes.status);
-          console.log("📡 Direct backend response url:", directRes.url);
-          console.log("📡 Direct backend response redirected:", directRes.redirected);
-
-          if (directRes.redirected) {
-            console.log("✅ Direct backend redirect successful to:", directRes.url);
-            window.location.href = directRes.url;
-            return;
-          }
-
-          if (directRes.ok) {
-            const directData = await directRes.json();
-            console.log("📦 Direct backend response:", directData);
-            
-            // تصحیح: orderId از directData میاد، نه directData.data
-            if (directData.orderId) {
-              const successUrl = `/payment/success?orderId=${directData.orderId}&transactionId=${directData.transactionId || 'N/A'}&amount=${directData.amount || 'N/A'}&paymentMethod=PayPal`;
-              console.log("✅ Redirecting to success from direct backend:", successUrl);
-              router.replace(successUrl);
-              return;
-            } else {
-              console.error("❌ Direct backend response missing orderId:", directData);
-            }
-          } else {
-            console.error("❌ Direct backend request failed with status:", directRes.status);
-          }
-        } catch (directErr) {
-          console.error("❌ Direct backend request also failed:", directErr);
-        }
-
-        // اگر همه چیز fail شد
-        console.error("❌ All verification methods failed");
-        router.replace(`/payment/failed?error=network_error&reason=Netzwerkfehler`);
+    // اگر data داریم
+    if (verificationData) {
+      console.log("📦 Verification response:", verificationData);
+      
+      // بررسی اینکه orderId موجود باشه
+      if (!verificationData.orderId) {
+        console.error("❌ orderId is missing in verification response:", verificationData);
+        router.replace("/payment/failed?error=missing_orderId&reason=Bestellnummer fehlt");
+        return;
       }
-    };
 
-    verify();
-  }, [token, router]);
+      // ریدایرکت به صفحه موفقیت با تمام اطلاعات
+      const { orderId, transactionId, amount, paymentMethod } = verificationData;
+      const successUrl = `/payment/success?orderId=${orderId}&transactionId=${transactionId || 'N/A'}&amount=${amount || 'N/A'}&paymentMethod=${paymentMethod || 'PayPal'}`;
+      console.log("✅ Redirecting to success:", successUrl);
+      router.replace(successUrl);
+    }
+  }, [token, router, isClient, verificationData, isLoading, isError, error]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -129,6 +76,12 @@ export default function PayPalVerifyClient() {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">PayPal-Zahlung wird verifiziert...</h2>
         <p className="text-gray-600">Bitte warten Sie einen Moment</p>
         <p className="text-xs text-gray-500 mt-2">Token: {token}</p>
+        {isLoading && (
+          <p className="text-xs text-blue-500 mt-2">Verifikation läuft...</p>
+        )}
+        {isError && (
+          <p className="text-xs text-red-500 mt-2">Fehler bei der Verifikation</p>
+        )}
       </div>
     </div>
   );

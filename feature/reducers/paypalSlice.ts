@@ -25,7 +25,7 @@ export const extendedApiOrderSlice = apiSlice.injectEndpoints({
         verifyPayPalPayment: builder.query<any, { token: string }>({
             query: ({ token }) => ({
                 // استفاده از proxy API برای حل مشکل CORS
-                url: `/verify-paypal?token=${token}`,
+                url: `/api/order/payment/verify/paypal?token=${token}`,
                 method: "GET",
             }),
             // اضافه کردن error handling بهتر
