@@ -142,7 +142,21 @@ export default function PaymentFailedClient() {
         {/* Action Buttons */}
         <div className="space-y-3">
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => {
+              // بررسی اینکه آیا کاربر از وب‌سایت دیگری آمده یا نه
+              const referrer = document.referrer;
+              const currentDomain = window.location.origin;
+              
+              // اگر referrer موجود باشه و از دامنه دیگری باشه
+              if (referrer && !referrer.startsWith(currentDomain)) {
+                console.log("🔗 Redirecting to original website:", referrer);
+                window.location.href = referrer;
+              } else {
+                // اگر referrer نباشه یا از همین دامنه باشه، به صفحه اصلی برو
+                console.log("🏠 Redirecting to homepage");
+                window.location.href = '/';
+              }
+            }}
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200"
           >
             Zurück zur Startseite

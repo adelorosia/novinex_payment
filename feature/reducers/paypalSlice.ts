@@ -1,5 +1,5 @@
 
-import { IOrder, TOrder } from "@/interface";
+import { IOrder } from "@/interface";
 import {
     createEntityAdapter,
     createSlice,
