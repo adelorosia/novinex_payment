@@ -30,7 +30,7 @@ export default function PaymentCancelClient() {
     if (restaurantIdParam) setRestaurantId(restaurantIdParam);
   }, [searchParams]);
 
-  // پیدا کردن دامنه رستوران
+  // پیدا کردن دامنه رستوران - دقیقاً مثل success page
   const getRestaurantDomain = () => {
     if (!restaurantId || restaurantId === 'N/A') return null;
     
@@ -125,7 +125,7 @@ export default function PaymentCancelClient() {
                 currentDomain: window.location.origin
               });
               
-              // فقط به دامنه رستوران برو
+              // فقط به دامنه رستوران برو - دقیقاً مثل success page
               if (restaurantDomain) {
                 console.log("🏪 Redirecting to restaurant domain:", restaurantDomain);
                 window.location.href = restaurantDomain;
