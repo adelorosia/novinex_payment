@@ -63,10 +63,17 @@ export default function PaymentSuccessClient() {
     if (!restaurantId || restaurantId === 'N/A') return null;
     
     const restaurant = restaurants.find(r => r.no === restaurantId);
+    console.log("🔍 Debug restaurant lookup:", {
+      restaurantId,
+      restaurants: restaurants.length,
+      foundRestaurant: restaurant,
+      domain: restaurant?.domain
+    });
     return restaurant?.domain || null;
   };
 
   const restaurantDomain = getRestaurantDomain();
+  console.log("🏪 Restaurant domain:", restaurantDomain);
 
   // اگر هنوز client-side نیست، loading نمایش بده
   if (!isClient) {
@@ -168,6 +175,13 @@ export default function PaymentSuccessClient() {
         <div className="space-y-3">
           <button
             onClick={() => {
+              console.log("🔍 Button clicked - Debug info:", {
+                restaurantDomain,
+                restaurantId,
+                referrer: document.referrer,
+                currentDomain: window.location.origin
+              });
+              
               // اگر دامنه رستوران موجود باشه، کاربر را به آنجا بفرست
               if (restaurantDomain) {
                 console.log("🏪 Redirecting to restaurant domain:", restaurantDomain);
