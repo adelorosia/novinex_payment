@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("🔍 Proxying PayPal verification request for token:", token);
+
     // درخواست به بک‌اند
     const response = await fetch(`https://novinex-db.novinex.de/api/order/payment/verify/paypal?token=${token}`, {
       method: 'GET',
@@ -29,7 +31,26 @@ export async function GET(request: NextRequest) {
       },
       // اضافه کردن credentials
       credentials: 'include',
+      // اضافه کردن redirect: 'follow' برای handle کردن redirect ها
+      redirect: 'follow',
     });
+
+    console.log("📡 Backend response status:", response.status);
+    console.log("📡 Backend response url:", response.url);
+
+    // اگر بک‌اند redirect کرده باشه
+    if (response.redirected) {
+      console.log("🔄 Backend redirected to:", response.url);
+      
+      // اگر redirect به success page باشه، URL رو return کنیم
+      if (response.url.includes('/payment/success')) {
+        return NextResponse.json({
+          success: true,
+          redirectUrl: response.url,
+          message: 'Payment verified, redirecting to success page'
+        });
+      }
+    }
 
     if (!response.ok) {
       console.error('Backend response error:', response.status, response.statusText);
@@ -37,10 +58,35 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    console.log("📦 Backend response data:", data);
     
+    // بررسی اینکه data درست باشه
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response format from backend');
+    }
+
+    // بررسی اینکه orderId موجود باشه (از data.data.orderId)
+    const orderData = data.data || data;
+    if (!orderData || !orderData.orderId) {
+      console.error("❌ Backend response missing orderId:", data);
+      return NextResponse.json({
+        success: false,
+        error: 'Backend response missing orderId',
+        data: data
+      });
+    }
+
+    console.log("✅ Found orderId:", orderData.orderId);
+
     return NextResponse.json({
       success: true,
-      data
+      data: {
+        orderId: orderData.orderId,
+        transactionId: orderData.transactionId,
+        amount: orderData.amount,
+        paymentMethod: orderData.paymentMethod || 'PayPal',
+        status: orderData.status || 'completed'
+      }
     }, {
       headers: {
         'Access-Control-Allow-Origin': 'https://pay.novinex.de',
