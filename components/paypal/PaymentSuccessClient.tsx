@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useVerifyPayPalPaymentQuery } from '@/feature/reducers/paypalSlice';
+import { useVerifyStripePaymentQuery } from '@/feature/reducers/stripSlice';
 import { displayRestaurants } from '@/feature/reducers/restaurantSlice';
 import { useSelector } from 'react-redux';
 
@@ -14,6 +15,7 @@ export default function PaymentSuccessClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isValidAccess, setIsValidAccess] = useState(false);
 
   // گرفتن اطلاعات از URL
   const orderId = searchParams?.get('orderId');
@@ -24,10 +26,22 @@ export default function PaymentSuccessClient() {
   const restaurantId = searchParams?.get('restaurantId');
 
   // استفاده از RTK Query برای تأیید پرداخت PayPal (اختیاری)
-  const { data: verificationData, isLoading: isVerifying, error } = useVerifyPayPalPaymentQuery(
+  const { data: paypalVerificationData, isLoading: isPayPalVerifying, error: paypalError } = useVerifyPayPalPaymentQuery(
     { token: token || '' },
     { 
-      skip: !token || !isClient,
+      skip: !token || !isClient || paymentMethod !== 'PayPal',
+      // اضافه کردن error handling بهتر
+      refetchOnMountOrArgChange: false,
+      refetchOnFocus: false,
+      refetchOnReconnect: false
+    }
+  );
+
+  // استفاده از RTK Query برای تأیید پرداخت Stripe (Credit Card)
+  const { data: stripeVerificationData, isLoading: isStripeVerifying, error: stripeError } = useVerifyStripePaymentQuery(
+    { sessionId: token || '' },
+    { 
+      skip: !token || !isClient || paymentMethod !== 'Credit Card',
       // اضافه کردن error handling بهتر
       refetchOnMountOrArgChange: false,
       refetchOnFocus: false,
@@ -44,6 +58,32 @@ export default function PaymentSuccessClient() {
   useEffect(() => {
     setIsClient(true);
     
+    // بررسی اینکه آیا دسترسی معتبر است
+    const checkValidAccess = () => {
+      // بررسی اینکه آیا از verify page یا payment gateway آمده
+      const referrer = document.referrer;
+      const currentDomain = window.location.origin;
+      
+      // اگر referrer از همین domain باشه یا از external payment gateway
+      const isValidReferrer = referrer.includes(currentDomain) || 
+                             referrer.includes('paypal.com') || 
+                             referrer.includes('stripe.com') ||
+                             referrer.includes('checkout.stripe.com');
+      
+      // یا اینکه parameters لازم موجود باشن (از verify page آمده)
+      const hasRequiredParams = orderId && paymentMethod;
+      
+      return isValidReferrer || hasRequiredParams;
+    };
+    
+    if (!checkValidAccess()) {
+      // ریدایرکت به صفحه اصلی
+      window.location.href = '/';
+      return;
+    }
+    
+    setIsValidAccess(true);
+    
     if (orderId && transactionId && paymentMethod) {
       setPaymentData({
         orderId,
@@ -52,11 +92,11 @@ export default function PaymentSuccessClient() {
         date: new Date().toLocaleDateString('de-DE'),
         time: new Date().toLocaleTimeString('de-DE'),
         // استفاده مستقیم از verificationData یا amount از URL یا fallback
-        amount: verificationData?.amount ?? amount ?? '100.00'
+        amount: (paypalVerificationData as any)?.amount ?? (stripeVerificationData as any)?.amount ?? amount ?? '100.00'
       });
     }
     setIsLoading(false);
-  }, [orderId, transactionId, paymentMethod, verificationData, amount]);
+  }, [orderId, transactionId, paymentMethod, paypalVerificationData, stripeVerificationData, amount]);
 
   // پیدا کردن دامنه رستوران
   const getRestaurantDomain = () => {
@@ -79,8 +119,8 @@ export default function PaymentSuccessClient() {
   const restaurantDomain = getRestaurantDomain();
   console.log("🏪 Restaurant domain:", restaurantDomain);
 
-  // اگر هنوز client-side نیست، loading نمایش بده
-  if (!isClient) {
+  // اگر هنوز client-side نیست یا دسترسی معتبر نیست، loading نمایش بده
+  if (!isClient || !isValidAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="text-center">
@@ -92,12 +132,24 @@ export default function PaymentSuccessClient() {
   }
 
   // اگر در حال تأیید PayPal هست (فقط اگر token موجود باشه)
-  if (isVerifying && token) {
+  if (isPayPalVerifying && token && paymentMethod === 'PayPal') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Zahlung wird verifiziert...</p>
+          <p className="text-gray-600">PayPal-Zahlung wird verifiziert...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // اگر در حال تأیید Stripe هست (فقط اگر token موجود باشه)
+  if (isStripeVerifying && token && paymentMethod === 'Credit Card') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Kreditkartenzahlung wird verifiziert...</p>
         </div>
       </div>
     );
@@ -119,6 +171,8 @@ export default function PaymentSuccessClient() {
     switch (paymentMethod) {
       case 'PayPal':
         return 'Ihre PayPal-Zahlung wurde erfolgreich verarbeitet';
+      case 'Credit Card':
+        return 'Ihre Kreditkartenzahlung wurde erfolgreich verarbeitet';
       case 'CreditCard':
         return 'Ihre Kreditkartenzahlung wurde erfolgreich verarbeitet';
       case 'BankTransfer':
@@ -213,13 +267,13 @@ export default function PaymentSuccessClient() {
             Die Zahlungsbestätigung wird an Ihre E-Mail gesendet
           </p>
           {/* اگر verificationData اطلاعات اضافی داره */}
-          {verificationData?.additionalInfo && (
+          {((paypalVerificationData as any)?.additionalInfo || (stripeVerificationData as any)?.additionalInfo) && (
             <p className="text-xs text-blue-600 mt-2">
-              {verificationData.additionalInfo}
+              {(paypalVerificationData as any)?.additionalInfo || (stripeVerificationData as any)?.additionalInfo}
             </p>
           )}
           {/* اگر خطا در تأیید بود ولی اطلاعات کافی داشتیم */}
-          {error && token && (
+          {(paypalError && token && paymentMethod === 'PayPal') || (stripeError && token && paymentMethod === 'Credit Card') && (
             <p className="text-xs text-yellow-600 mt-2">
               ⚠️ Zahlung erfolgreich, aber Verifikation konnte nicht abgeschlossen werden
             </p>

@@ -12,6 +12,7 @@ export default function PaymentCancelClient() {
   const [token, setToken] = useState<string>('');
   const [restaurantId, setRestaurantId] = useState<string>('');
   const [isClient, setIsClient] = useState(false);
+  const [isValidAccess, setIsValidAccess] = useState(false);
 
   // دریافت اطلاعات رستوران‌ها
   const restaurants = useSelector((state: any) => displayRestaurants(state));
@@ -23,6 +24,31 @@ export default function PaymentCancelClient() {
     const paymentMethodParam = searchParams?.get('paymentMethod');
     const tokenParam = searchParams?.get('token');
     const restaurantIdParam = searchParams?.get('restaurantId');
+
+    // بررسی اینکه آیا دسترسی معتبر است
+    const checkValidAccess = () => {
+      const referrer = document.referrer;
+      const currentDomain = window.location.origin;
+      
+      // اگر referrer از همین domain باشه یا از external payment gateway
+      const isValidReferrer = referrer.includes(currentDomain) || 
+                             referrer.includes('paypal.com') || 
+                             referrer.includes('stripe.com') ||
+                             referrer.includes('checkout.stripe.com');
+      
+      // یا اینکه parameters لازم موجود باشن
+      const hasRequiredParams = orderIdParam || tokenParam;
+      
+      return isValidReferrer || hasRequiredParams;
+    };
+    
+    if (!checkValidAccess()) {
+      // ریدایرکت به صفحه اصلی
+      window.location.href = '/';
+      return;
+    }
+    
+    setIsValidAccess(true);
 
     if (orderIdParam) setOrderId(orderIdParam);
     if (paymentMethodParam) setPaymentMethod(paymentMethodParam);
@@ -51,8 +77,8 @@ export default function PaymentCancelClient() {
   const restaurantDomain = getRestaurantDomain();
   console.log("🏪 Restaurant domain:", restaurantDomain);
 
-  // اگر هنوز client-side نیست، loading نمایش بده
-  if (!isClient) {
+  // اگر هنوز client-side نیست یا دسترسی معتبر نیست، loading نمایش بده
+  if (!isClient || !isValidAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
         <div className="text-center">
